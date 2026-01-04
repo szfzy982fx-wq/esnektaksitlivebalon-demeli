@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Esnek Ödeme Planı Analizi</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #2980b9; /* Profesyonel Mavi */
+            --light: #f2f6f8;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --delete: #e74c3c;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #eef2f3;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 25px;
+            font-size: 1.6rem;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 15px;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+        }
+        input:focus { border-color: var(--accent); outline: none; }
+
+        /* Dinamik Taksit Alanı */
+        .installment-wrapper {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px dashed #bdc3c7;
+        }
+        .installment-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+        .installment-row input { margin: 0; }
+        .btn-add {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+        .btn-delete {
+            background-color: var(--delete);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* Sonuç Alanı */
+        .result-box {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid var(--accent);
+            margin-top: 20px;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        .highlight-balloon {
+            color: var(--danger);
+            font-weight: 800;
+            font-size: 1.2rem;
+        }
+        .verdict {
+            text-align: center;
+            padding: 15px;
+            color: white;
+            font-weight: bold;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 1.1rem;
+        }
+        .verdict-vadeli { background-color: var(--success); }
+        .verdict-pesin { background-color: var(--danger); }
+
+        .btn-calc {
+            grid-column: span 2;
+            background-color: var(--primary);
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: 0.3s;
+        }
+        .btn-calc:hover { background-color: #34495e; }
+
+        @media (max-width: 768px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .btn-calc { grid-column: span 1; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Kademeli Ödeme & Yatırım Analizi</h1>
+
+    <div class="main-grid">
+        <div>
+            <span class="section-title">1. Proje & Finans Bilgileri</span>
+            <div class="form-group">
+                <label>Liste Fiyatı (TL)</label>
+                <input type="text" id="listPrice" value="11.205.000" onkeyup="formatCurrency(this)" inputmode="numeric">
+            </div>
+            <div class="form-group">
+                <label>Peşinat (TL)</label>
+                <input type="text" id="downPayment" value="5.602.500" onkeyup="formatCurrency(this)" inputmode="numeric">
+            </div>
+            <div class="form-group">
+                <label>Toplam Vade Süresi (Ay)</label>
+                <input type="number" id="totalMonths" value="12">
+            </div>
+            <div class="form-group">
+                <label>Mevduat Faizi (Yıllık %)</label>
+                <input type="number" id="depositInterest" value="45" step="0.5">
+            </div>
+            <div class="form-group">
+                <label>Size Sunulan Peşin İndirimi (%)</label>
+                <input type="number" id="currentDiscount" value="10" step="0.1">
+            </div>
+        </div>
+
+        <div>
+            <span class="section-title">2. Taksit Planı Oluştur</span>
+            <div class="installment-wrapper" id="installmentContainer">
+                <p style="font-size:0.8rem; color:#666; margin-top:0;">
+                    Örn: İlk 6 ay 50.000, sonraki 6 ay 75.000 gibi dönemler ekleyin.
+                </p>
+                </div>
+            <button class="btn-add" onclick="addInstallmentRow()" style="margin-top:10px;">+ Yeni Taksit Dönemi Ekle</button>
+        </div>
+
+        <button class="btn-calc" onclick="calculate()">HESAPLA VE ANALİZ ET</button>
+    </div>
+
+    <div id="results" style="display:none;">
+        <div class="result-box">
+            <h3 style="margin-top:0; color:var(--primary); text-align:center;">Analiz Sonucu</h3>
+            
+            <div class="result-item">
+                <span>Ödenecek Toplam Taksit:</span>
+                <strong id="dispTotalInstallments">0 ₺</strong>
+            </div>
+            <div class="result-item">
+                <span style="color:var(--danger); font-weight:bold;">Vade Sonu Balon Ödeme:</span>
+                <strong class="highlight-balloon" id="dispBalloon">0 ₺</strong>
+            </div>
+            <div class="result-item" style="font-size:0.9rem; color:#777;">
+                (Vade sonunu takip eden ay kapatılacak tutar)
+            </div>
+
+            <hr>
+
+            <div class="result-item">
+                <span>Vadeli Planın Bugünkü Maliyeti (NPV):</span>
+                <strong id="dispNPV">0 ₺</strong>
+            </div>
+            <div class="result-item">
+                <span>Peşin Alım Fiyatı:</span>
+                <strong id="dispCashPrice">0 ₺</strong>
+            </div>
+            
+            <div style="text-align:center; margin-top:15px; background:#f9f9f9; padding:10px; border-radius:6px;">
+                <small style="color:#777;">BAŞABAŞ OLMASI GEREKEN İNDİRİM</small><br>
+                <span id="dispBreakEven" style="font-size:1.8rem; font-weight:bold; color:var(--accent);">% 0</span>
+            </div>
+
+            <div id="verdictBox" class="verdict">...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // === YARDIMCI FONKSİYONLAR ===
+    function formatCurrency(input) {
+        let value = input.value.replace(/\D/g, "");
+        if (value === "") { input.value = ""; return; }
+        input.value = value.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    function getCleanNumber(val) {
+        if (!val) return 0;
+        return parseFloat(val.replace(/\./g, '')) || 0;
+    }
+    
+    const trFmt = new Intl.NumberFormat('tr-TR', {
+        style: 'currency',
+        currency: 'TRY',
+        maximumFractionDigits: 0
+    });
+
+    // === DİNAMİK SATIR YÖNETİMİ ===
+    const container = document.getElementById('installmentContainer');
+
+    function addInstallmentRow(duration = 6, amount = "") {
+        const div = document.createElement('div');
+        div.className = 'installment-row';
+        div.innerHTML = `
+            <div style="flex:1">
+                <label style="font-size:0.7rem;">Süre (Ay)</label>
+                <input type="number" class="period-duration" value="${duration}" min="1">
+            </div>
+            <div style="flex:2">
+                <label style="font-size:0.7rem;">Aylık Tutar (TL)</label>
+                <input type="text" class="period-amount" value="${amount}" onkeyup="formatCurrency(this)" inputmode="numeric" placeholder="Örn: 50.000">
+            </div>
+            <div style="align-self: flex-end;">
+                <button class="btn-delete" onclick="this.parentElement.parentElement.remove()">X</button>
+            </div>
+        `;
+        container.appendChild(div);
+    }
+
+    // === HESAPLAMA MOTORU ===
+    function calculate() {
+        // 1. Temel Verileri Al
+        const listPrice = getCleanNumber(document.getElementById('listPrice').value);
+        const downPayment = getCleanNumber(document.getElementById('downPayment').value);
+        const totalMonths = parseInt(document.getElementById('totalMonths').value) || 12;
+        const depositRateYearly = parseFloat(document.getElementById('depositInterest').value) || 0;
+        const currentDiscount = parseFloat(document.getElementById('currentDiscount').value) || 0;
+        
+        const monthlyRate = (depositRateYearly / 12) / 100;
+
+        // 2. Taksit Akışını Çözümle
+        let installmentCashFlow = []; // Her ay ne ödenecek?
+        let totalPaidInstallments = 0;
+        let currentMonthCount = 0;
+
+        const rows = document.querySelectorAll('.installment-row');
+        
+        rows.forEach(row => {
+            const duration = parseInt(row.querySelector('.period-duration').value) || 0;
+            const amount = getCleanNumber(row.querySelector('.period-amount').value);
+
+            for(let i=0; i < duration; i++) {
+                // Eğer toplam vadeyi aşmıyorsak ekle
+                if(installmentCashFlow.length < totalMonths) {
+                    installmentCashFlow.push(amount);
+                    totalPaidInstallments += amount;
+                }
+            }
+        });
+
+        // Eğer girilen dönemler toplam süreyi doldurmuyorsa, kalan aylara 0 (veya son girilen) atanabilir. 
+        // Şimdilik kalan aylara 0 atıyoruz (Balona kalsın diye).
+        while(installmentCashFlow.length < totalMonths) {
+            installmentCashFlow.push(0);
+        }
+
+        // 3. Balon Ödemeyi Bul
+        // Toplam Borç - Peşinat - Ödenen Taksitler
+        let balloonPayment = listPrice - downPayment - totalPaidInstallments;
+
+        // Uyarı: Borç erken biterse
+        if(balloonPayment < 0) {
+            alert("Dikkat: Girdiğiniz taksitler toplam borcu aşıyor!");
+            return;
+        }
+
+        // 4. NPV Hesapla (Net Bugünkü Değer)
+        let npv = downPayment;
+
+        // Taksitlerin NPV'si
+        for(let i=0; i < installmentCashFlow.length; i++) {
+            let monthIndex = i + 1;
+            let payment = installmentCashFlow[i];
+            if(payment > 0) {
+                npv += payment / Math.pow(1 + monthlyRate, monthIndex);
+            }
+        }
+
+        // Balon Ödemenin NPV'si (Vade Sonu + 1 Ay)
+        npv += balloonPayment / Math.pow(1 + monthlyRate, totalMonths + 1);
+
+        // 5. Karşılaştırma ve Sonuçlar
+        const breakEvenRate = (1 - (npv / listPrice)) * 100;
+        const cashPrice = listPrice * (1 - (currentDiscount / 100));
+
+        // Ekrana Yaz
+        document.getElementById('results').style.display = 'block';
+        document.getElementById('dispTotalInstallments').innerText = trFmt.format(totalPaidInstallments);
+        document.getElementById('dispBalloon').innerText = trFmt.format(balloonPayment);
+        document.getElementById('dispNPV').innerText = trFmt.format(npv);
+        document.getElementById('dispCashPrice').innerText = trFmt.format(cashPrice);
+        document.getElementById('dispBreakEven').innerText = "% " + breakEvenRate.toFixed(2);
+
+        const verdictBox = document.getElementById('verdictBox');
+        if (currentDiscount < breakEvenRate) {
+            verdictBox.className = "verdict verdict-vadeli";
+            verdictBox.innerHTML = "TAVSİYE: VADELİ ALIN! <br> (Mevcut İndirim Yetersiz)";
+        } else {
+            verdictBox.className = "verdict verdict-pesin";
+            verdictBox.innerHTML = "TAVSİYE: PEŞİN ALIN! <br> (İndirim Oranı Çok İyi)";
+        }
+    }
+
+    // Sayfa açılışında varsayılan 1 satır ekle
+    window.onload = function() {
+        addInstallmentRow(6, "50.000"); // Varsayılan örnek
+        formatCurrency(document.getElementById('listPrice'));
+        formatCurrency(document.getElementById('downPayment'));
+    };
+
+</script>
+
+</body>
+</html>
